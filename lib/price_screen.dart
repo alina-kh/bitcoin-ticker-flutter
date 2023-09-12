@@ -1,26 +1,18 @@
 import 'dart:io' show Platform;
-import 'package:bitcoin_ticker/services/coin_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'coin_data.dart';
+import 'package:bitcoin_ticker/services/crypto_card.dart';
 
 class PriceScreen extends StatefulWidget {
-  PriceScreen({this.exchangeCoin});
-
-  final exchangeCoin;
 
   @override
   _PriceScreenState createState() => _PriceScreenState();
 }
 
 class _PriceScreenState extends State<PriceScreen> {
-  CoinModel exchange = CoinModel();
 
-  late double rate;
-
-  String selectedCurrencyIn = 'BTC';
-  String selectedCurrencyOut = 'USD';
-
+  String selectedCurrency = 'USD';
   // DropdownButton<String> getDropdownButton() {
   //   List<DropdownMenuItem<String>> dropdownItems = [];
   //
@@ -58,10 +50,9 @@ class _PriceScreenState extends State<PriceScreen> {
   //     },
   //   );
   // }
-
-  DropdownButton androidList() {
+  DropdownButton androidDrop() {
     return DropdownButton<String>(
-      value: selectedCurrencyOut,
+      value: selectedCurrency,
       items: currenciesList.map((currency) {
         return DropdownMenuItem(
           child: Text(currency),
@@ -69,31 +60,9 @@ class _PriceScreenState extends State<PriceScreen> {
         );
       }).toList(),
       onChanged: (value) async {
-        var coinData = await exchange.getCoinData(selectedCurrencyOut, value!);
-        updateUI(coinData);
         setState(() {
-          selectedCurrencyOut = value;
-          rate = coinData['rate'];
-        });
-      },
-    );
-  }
-
-  DropdownButton androidListIn() {
-    return DropdownButton<String>(
-      value: selectedCurrencyIn,
-      items: cryptoList.map((currency) {
-        return DropdownMenuItem(
-          child: Text(currency),
-          value: currency,
-        );
-      }).toList(),
-      onChanged: (value) async {
-        var coinData = await exchange.getCoinData(selectedCurrencyIn, value!);
-        updateUI(coinData);
-        setState(() {
-          selectedCurrencyIn = value;
-          rate = coinData['rate'];
+          selectedCurrency = value!;
+          updateUI();
         });
       },
     );
@@ -107,27 +76,33 @@ class _PriceScreenState extends State<PriceScreen> {
         return Text(currency);
       }).toList(),
       onSelectedItemChanged: (selectedIndex) {
+        selectedCurrency = currenciesList[selectedIndex];
+        updateUI();
       },
     );
+  }
+
+  Map<String, String> coinPrices = {};
+  bool checked = false;
+
+  void updateUI() async {
+    checked = true;
+    try {
+      var data = await CoinData().getCoinData(selectedCurrency);
+      checked = false;
+      setState(() {
+        coinPrices = data;
+      });
+    } catch (e) {
+      print(e);
+    }
   }
 
   @override
   void initState() {
     super.initState();
 
-    updateUI(widget.exchangeCoin);
-  }
-
-  void updateUI(dynamic coinData) {
-    setState(() {
-      if (coinData == null) {
-        rate = 0;
-
-        return;
-      } else {
-        rate = coinData['rate'];
-      }
-    });
+    updateUI();
   }
 
   Widget build(BuildContext context) {
@@ -139,40 +114,17 @@ class _PriceScreenState extends State<PriceScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Padding(
-            padding: EdgeInsets.fromLTRB(18.0, 18.0, 18.0, 0),
-            child: Card(
-              color: Colors.lightBlueAccent,
-              elevation: 5.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
-                child: Text(
-                  '1 $selectedCurrencyIn = $rate $selectedCurrencyOut',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20.0,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+          Column(
+            children: cryptoList.map((currency) {
+              return CryptoCard(crypto: currency, rate: checked ? '?' : coinPrices[currency], selectedCurrency: selectedCurrency);
+            }).toList(),
           ),
           Container(
             height: 150.0,
             alignment: Alignment.center,
             padding: EdgeInsets.only(bottom: 30.0),
             color: Colors.lightBlue,
-            child: Platform.isIOS ? iOSPicker() : androidListIn(),
-          ),
-          Container(
-            height: 150.0,
-            alignment: Alignment.center,
-            padding: EdgeInsets.only(bottom: 30.0),
-            color: Colors.lightBlue,
-            child: Platform.isIOS ? iOSPicker() : androidList(),
+            child: Platform.isIOS ? iOSPicker() : androidDrop(),
           ),
         ],
       ),

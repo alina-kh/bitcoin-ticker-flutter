@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'services/coin_model.dart';
+import 'package:http/http.dart' as http;
+
+const apiKey = 'F469257C-344A-4EDE-988A-E292ACD6DF26';
+const openCoinURL = 'https://rest.coinapi.io/v1/exchangerate';
 
 const List<String> currenciesList = [
   'AUD',
@@ -32,17 +36,20 @@ const List<String> cryptoList = [
 ];
 
 class CoinData {
-  CoinModel exchange = CoinModel();
-
-  late double rate;
-  late String currencyType;
-
-  Future<void> getRateCurrency(value) async {
-    try {
-      var coinData = await exchange.getCoinData(currencyType, currencyType);
-      rate = coinData['rate'];
-    } catch (e) {
-      print(e);
+  Future getCoinData(String selectedCurrency) async {
+    Map<String, String> prices = {};
+    for (String crypto in cryptoList) {
+      String requestURL = '$openCoinURL/$crypto/$selectedCurrency?apikey=$apiKey';
+      http.Response response = await http.get(Uri.parse(requestURL));
+      if (response.statusCode == 200) {
+        var decodedData = jsonDecode(response.body);
+        double price = decodedData['rate'];
+        prices[crypto] = price.toStringAsFixed(0);
+      } else {
+        print(response.statusCode);
+        throw 'Problem with the get request';
+      }
     }
+    return prices;
   }
 }
